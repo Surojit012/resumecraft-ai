@@ -38,7 +38,7 @@ db.exec(`
 `);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5173;
 
 app.use(express.json());
 app.use(cookieParser());
@@ -51,7 +51,7 @@ const authenticate = async (req: any, res: any, next: any) => {
   }
 
   const authToken = authHeader.split('Bearer ')[1];
-  
+
   // Fallback for development if Privy is not configured
   if (!privy) {
     console.warn('Privy not configured. Skipping token verification (DEV ONLY).');

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-export const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize with a dummy key if undefined so the app doesn't crash on load
+export const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing_api_key" });
 
 export async function generateResumeContent(prompt: string, currentContent?: string) {
   try {
