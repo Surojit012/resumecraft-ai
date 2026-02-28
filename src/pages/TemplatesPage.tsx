@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ResumePreview } from '@/components/ResumePreview';
+import { initialResumeData } from '@/types';
 
 const templates = [
   {
@@ -129,24 +131,25 @@ export default function TemplatesPage() {
               transition={{ delay: index * 0.1 }}
               className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-200"
             >
-              <div className={`h-64 ${template.color} relative overflow-hidden`}>
-                <img 
-                  src={template.image} 
-                  alt={template.name}
-                  className="w-full h-full object-cover object-top opacity-90 group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link 
+              <div className={`h-80 ${template.color || 'bg-slate-100'} relative overflow-hidden flex justify-center`}>
+                <div
+                  className="w-[794px] h-[1123px] origin-top scale-[0.22] sm:scale-[0.24] md:scale-[0.21] lg:scale-[0.21] xl:scale-[0.23] mt-6 shadow-[0_0_40px_rgba(0,0,0,0.1)] bg-white pointer-events-none transition-transform duration-500 group-hover:scale-[0.23] sm:group-hover:scale-[0.25] md:group-hover:scale-[0.22] lg:group-hover:scale-[0.22] xl:group-hover:scale-[0.24]"
+                >
+                  <ResumePreview data={initialResumeData} templateId={template.id} />
+                </div>
+
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-slate-900/10 transition-colors z-10" />
+
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                  <Link
                     to={`/editor/${template.id}`}
-                    className="px-6 py-3 bg-white text-slate-900 rounded-full font-semibold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all"
+                    className="px-6 py-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-full font-semibold shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-all border border-indigo-500"
                   >
                     Use Template
                   </Link>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{template.name}</h3>
                 <p className="text-slate-500 text-sm mb-4">{template.description}</p>
