@@ -1,40 +1,7 @@
 import { motion } from 'framer-motion';
 import { Clock, ArrowRight } from 'lucide-react';
-
-const blogPosts = [
-    {
-        title: 'How to Write a Resume That Stands Out in 2026',
-        excerpt: 'Learn the latest techniques and formatting tricks to make sure your resume passes the ATS and catches the recruiter\'s eye.',
-        category: 'Resume Writing',
-        readTime: '5 min read',
-        date: 'March 1, 2026',
-        image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&q=80&w=800'
-    },
-    {
-        title: 'The Ultimate Guide to Remote Job Hunting',
-        excerpt: 'Discover the best platforms, strategies, and interview tips for landing your dream remote position.',
-        category: 'Job Search',
-        readTime: '8 min read',
-        date: 'February 25, 2026',
-        image: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&q=80&w=800'
-    },
-    {
-        title: '5 Common AI Resume Builder Mistakes to Avoid',
-        excerpt: 'Make sure you are getting the most out of our AI tools by avoiding these common pitfalls when generating your content.',
-        category: 'Platform Tips',
-        readTime: '4 min read',
-        date: 'February 15, 2026',
-        image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800'
-    },
-    {
-        title: 'Negotiating Your Salary: A Step-by-Step Guide',
-        excerpt: 'Don\'t leave money on the table. Learn how to confidently negotiate your starting salary and benefits package.',
-        category: 'Career Advice',
-        readTime: '6 min read',
-        date: 'February 10, 2026',
-        image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800'
-    }
-];
+import { Link } from 'react-router-dom';
+import { blogPosts } from '@/data/blog';
 
 export default function BlogPage() {
     return (
@@ -95,9 +62,9 @@ export default function BlogPage() {
                                     {post.excerpt}
                                 </p>
 
-                                <a href="#" className="inline-flex items-center font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                                <Link to={`/blog/${post.slug}`} className="inline-flex items-center font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
                                     Read Article <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                                </a>
+                                </Link>
                             </div>
                         </motion.article>
                     ))}
