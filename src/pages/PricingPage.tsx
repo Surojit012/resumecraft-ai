@@ -19,8 +19,8 @@ const plans = [
     popular: false,
   },
   {
-    name: 'Pro',
-    price: '12',
+    name: 'Premium',
+    price: '9',
     description: 'Everything you need for a successful career move.',
     features: [
       { text: 'All Professional Templates', included: true },
@@ -31,25 +31,9 @@ const plans = [
       { text: 'Priority Support', included: true },
       { text: 'No Watermark', included: true },
     ],
-    cta: 'Try Pro Free',
+    cta: 'Get Premium',
     popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: '49',
-    description: 'For teams and professional career coaches.',
-    features: [
-      { text: 'Everything in Pro', included: true },
-      { text: 'Team Collaboration', included: true },
-      { text: 'Custom Branding', included: true },
-      { text: 'Bulk Export', included: true },
-      { text: 'Dedicated Account Manager', included: true },
-      { text: 'API Access', included: true },
-      { text: 'SSO Integration', included: true },
-    ],
-    cta: 'Contact Sales',
-    popular: false,
-  },
+  }
 ];
 
 export default function PricingPage() {
@@ -58,14 +42,14 @@ export default function PricingPage() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl font-bold text-slate-900 mb-6"
           >
             Simple, <span className="text-indigo-600">transparent</span> pricing
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -76,23 +60,22 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className={`relative p-8 rounded-3xl bg-white border ${
-                plan.popular ? 'border-indigo-600 shadow-xl scale-105 z-10' : 'border-slate-200 shadow-sm'
-              }`}
+              className={`relative p-8 rounded-3xl bg-white border ${plan.popular ? 'border-indigo-600 shadow-xl scale-105 z-10' : 'border-slate-200 shadow-sm'
+                }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-sm font-bold rounded-full">
                   MOST POPULAR
                 </div>
               )}
-              
+
               <div className="mb-8">
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                 <p className="text-slate-500 text-sm">{plan.description}</p>
@@ -105,11 +88,10 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              <button className={`w-full py-3 rounded-xl font-bold transition-all mb-8 ${
-                plan.popular 
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200' 
+              <button className={`w-full py-3 rounded-xl font-bold transition-all mb-8 ${plan.popular
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
                   : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-              }`}>
+                }`}>
                 {plan.cta}
               </button>
 
