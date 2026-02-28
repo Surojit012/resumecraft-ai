@@ -65,7 +65,7 @@ export function ChatBot() {
           model: "accounts/fireworks/models/mixtral-8x22b-instruct",
           messages: [
             systemInstruction,
-            ...updatedMessages.map(msg => ({ role: msg.role, content: msg.content }))
+            ...updatedMessages.filter(msg => msg.id !== 'welcome').map(msg => ({ role: msg.role, content: msg.content }))
           ],
           stream: true
         })
