@@ -32,8 +32,9 @@ const plans = [
       { text: 'Priority Support', included: true },
       { text: 'No Watermark', included: true },
     ],
-    cta: 'Get Premium',
+    cta: 'Coming Soon',
     popular: true,
+    disabled: true,
   }
 ];
 
@@ -89,10 +90,14 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              <button className={`w-full py-3 rounded-xl font-bold transition-all mb-8 ${plan.popular
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
-                : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-                }`}>
+              <button
+                disabled={!!plan.disabled}
+                className={`w-full py-3 rounded-xl font-bold transition-all mb-8 ${plan.disabled
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  : plan.popular
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
+                    : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                  }`}>
                 {plan.cta}
               </button>
 
