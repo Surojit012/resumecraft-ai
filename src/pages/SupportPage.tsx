@@ -61,9 +61,12 @@ export default function SupportPage() {
                             </div>
                             <h3 className="text-lg font-bold text-slate-900 mb-2">Email Us</h3>
                             <p className="text-slate-500 mb-4 text-sm">Send us an email and we'll get back to you within 24 hours.</p>
-                            <a href="mailto:support@buildmyresume.com" className="text-indigo-600 font-semibold hover:underline">
+                            <span className="text-slate-500 font-semibold bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg text-sm inline-block cursor-not-allowed hidden">
                                 support@buildmyresume.com
-                            </a>
+                            </span>
+                            <span className="text-slate-400 font-semibold bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg text-sm inline-block">
+                                Coming Soon
+                            </span>
                         </motion.div>
 
                         <motion.div
