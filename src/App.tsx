@@ -18,6 +18,7 @@ import SupportPage from '@/pages/SupportPage';
 import BlogPage from '@/pages/BlogPage';
 import BlogPostPage from '@/pages/BlogPostPage';
 import CareerAdvicePage from '@/pages/CareerAdvicePage';
+import CareerTopicPage from '@/pages/CareerTopicPage';
 import HelpCenterPage from '@/pages/HelpCenterPage';
 import { ChatBot } from '@/components/ChatBot';
 
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/career-advice" element={<CareerAdvicePage />} />
+            <Route path="/career-advice/:slug" element={<CareerTopicPage />} />
             <Route path="/help-center" element={<HelpCenterPage />} />
           </Routes>
         </main>

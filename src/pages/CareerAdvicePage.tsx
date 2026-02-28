@@ -1,32 +1,7 @@
 import { motion } from 'framer-motion';
 import { BookOpen, Target, Users, TrendingUp } from 'lucide-react';
-
-const topics = [
-    {
-        title: 'Interview Preparation',
-        description: 'Master the art of interviewing with our comprehensive guides and mock questions.',
-        icon: Users,
-        color: 'bg-blue-100 text-blue-600'
-    },
-    {
-        title: 'Career Advancement',
-        description: 'Strategies for getting promoted, asking for raises, and managing your career trajectory.',
-        icon: TrendingUp,
-        color: 'bg-emerald-100 text-emerald-600'
-    },
-    {
-        title: 'Resume & Cover Letter Tips',
-        description: 'Learn how to craft compelling documents that showcase your unique value.',
-        icon: BookOpen,
-        color: 'bg-purple-100 text-purple-600'
-    },
-    {
-        title: 'Job Search Strategies',
-        description: 'Navigate the modern job market with effective networking and application tactics.',
-        icon: Target,
-        color: 'bg-orange-100 text-orange-600'
-    }
-];
+import { Link } from 'react-router-dom';
+import { careerTopics as topics } from '@/data/career';
 
 export default function CareerAdvicePage() {
     return (
@@ -65,24 +40,27 @@ export default function CareerAdvicePage() {
                         {topics.map((topic, index) => {
                             const Icon = topic.icon;
                             return (
-                                <motion.a
-                                    href="#"
+                                <Link
+                                    to={`/career-advice/${topic.slug}`}
                                     key={index}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.1 + index * 0.1 }}
-                                    className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group block"
+                                    className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group block relative overflow-hidden"
                                 >
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${topic.color}`}>
-                                        <Icon size={28} />
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors">
-                                        {topic.title}
-                                    </h3>
-                                    <p className="text-slate-600 leading-relaxed">
-                                        {topic.description}
-                                    </p>
-                                </motion.a>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.1 + index * 0.1 }}
+                                    >
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${topic.color}`}>
+                                            <Icon size={28} />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors">
+                                            {topic.title}
+                                        </h3>
+                                        <p className="text-slate-600 leading-relaxed relative z-10">
+                                            {topic.description}
+                                        </p>
+                                    </motion.div>
+                                </Link>
                             )
                         })}
                     </div>
