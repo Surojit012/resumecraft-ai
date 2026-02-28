@@ -7,7 +7,7 @@ export function Header() {
   const { user, logout, login } = useAuth();
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 print:hidden">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-xl text-slate-900">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
@@ -69,7 +69,7 @@ export function Header() {
 
 export function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-300 py-12 border-t border-slate-800">
+    <footer className="bg-slate-900 text-slate-300 py-12 border-t border-slate-800 print:hidden">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
