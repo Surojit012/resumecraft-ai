@@ -20,6 +20,7 @@ import BlogPostPage from '@/pages/BlogPostPage';
 import CareerAdvicePage from '@/pages/CareerAdvicePage';
 import CareerTopicPage from '@/pages/CareerTopicPage';
 import HelpCenterPage from '@/pages/HelpCenterPage';
+import HelpCategoryPage from '@/pages/HelpCategoryPage';
 import { ChatBot } from '@/components/ChatBot';
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/career-advice" element={<CareerAdvicePage />} />
             <Route path="/career-advice/:slug" element={<CareerTopicPage />} />
             <Route path="/help-center" element={<HelpCenterPage />} />
+            <Route path="/help-center/:slug" element={<HelpCategoryPage />} />
           </Routes>
         </main>
         <Footer />

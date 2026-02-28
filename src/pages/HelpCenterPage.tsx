@@ -1,13 +1,7 @@
 import { motion } from 'framer-motion';
-import { Search, HelpCircle, Shield, FileText, Settings, CreditCard } from 'lucide-react';
+import { Search, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const categories = [
-    { title: "Getting Started", icon: Shield, desc: "Account setup and basics" },
-    { title: "Resume Builder", icon: FileText, desc: "Creating and editing resumes" },
-    { title: "Managing Account", icon: Settings, desc: "Settings and preferences" },
-    { title: "Billing & Plans", icon: CreditCard, desc: "Payments and subscriptions" }
-];
+import { helpCategories as categories } from '@/data/help';
 
 export default function HelpCenterPage() {
     return (
@@ -53,19 +47,24 @@ export default function HelpCenterPage() {
                     {categories.map((cat, index) => {
                         const Icon = cat.icon;
                         return (
-                            <motion.div
+                            <Link
+                                to={`/help-center/${cat.slug}`}
                                 key={index}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 + index * 0.1 }}
-                                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-300 cursor-pointer transition-all group"
+                                className="block"
                             >
-                                <div className="w-12 h-12 bg-slate-50 text-indigo-600 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                    <Icon size={24} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">{cat.title}</h3>
-                                <p className="text-slate-500 text-sm">{cat.desc}</p>
-                            </motion.div>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 + index * 0.1 }}
+                                    className="h-full bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-300 cursor-pointer transition-all group"
+                                >
+                                    <div className="w-12 h-12 bg-slate-50 text-indigo-600 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                        <Icon size={24} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900 mb-2">{cat.title}</h3>
+                                    <p className="text-slate-500 text-sm">{cat.desc}</p>
+                                </motion.div>
+                            </Link>
                         )
                     })}
                 </div>
