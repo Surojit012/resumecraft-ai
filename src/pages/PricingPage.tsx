@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const plans = [
   {
@@ -89,8 +90,8 @@ export default function PricingPage() {
               </div>
 
               <button className={`w-full py-3 rounded-xl font-bold transition-all mb-8 ${plan.popular
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
-                  : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'
+                : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
                 }`}>
                 {plan.cta}
               </button>
@@ -116,7 +117,7 @@ export default function PricingPage() {
         {/* FAQ Preview */}
         <div className="text-center">
           <p className="text-slate-500">
-            Have questions? <button className="text-indigo-600 font-bold hover:underline">Check our FAQ</button> or <button className="text-indigo-600 font-bold hover:underline">Contact Support</button>
+            Have questions? <Link to="/faq" className="text-indigo-600 font-bold hover:underline">Check our FAQ</Link> or <Link to="/support" className="text-indigo-600 font-bold hover:underline">Contact Support</Link>
           </p>
         </div>
       </div>

@@ -13,6 +13,11 @@ import PricingPage from '@/pages/PricingPage';
 import AuthPage from '@/pages/AuthPage';
 import Dashboard from '@/pages/Dashboard';
 import PlaceholderPage from '@/pages/PlaceholderPage';
+import FAQPage from '@/pages/FAQPage';
+import SupportPage from '@/pages/SupportPage';
+import BlogPage from '@/pages/BlogPage';
+import CareerAdvicePage from '@/pages/CareerAdvicePage';
+import HelpCenterPage from '@/pages/HelpCenterPage';
 import { ChatBot } from '@/components/ChatBot';
 
 export default function App() {
@@ -30,6 +35,11 @@ export default function App() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/career-advice" element={<CareerAdvicePage />} />
+            <Route path="/help-center" element={<HelpCenterPage />} />
           </Routes>
         </main>
         <Footer />
