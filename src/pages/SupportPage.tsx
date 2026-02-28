@@ -121,8 +121,8 @@ export default function SupportPage() {
                                             name="name"
                                             value={formData.name}
                                             onChange={handleChange}
-                                            required
-                                            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                                            disabled
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                                             placeholder="John Doe"
                                         />
                                     </div>
@@ -136,8 +136,8 @@ export default function SupportPage() {
                                             name="email"
                                             value={formData.email}
                                             onChange={handleChange}
-                                            required
-                                            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                                            disabled
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                                             placeholder="john@example.com"
                                         />
                                     </div>
@@ -153,8 +153,8 @@ export default function SupportPage() {
                                         name="subject"
                                         value={formData.subject}
                                         onChange={handleChange}
-                                        required
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                                        disabled
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                                         placeholder="How can we help?"
                                     />
                                 </div>
@@ -168,22 +168,19 @@ export default function SupportPage() {
                                         name="message"
                                         value={formData.message}
                                         onChange={handleChange}
-                                        required
                                         rows={5}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all resize-none"
+                                        disabled
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                                         placeholder="Provide details about your question or issue..."
                                     />
                                 </div>
 
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
-                                    className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${isSubmitting
-                                            ? 'bg-indigo-400 cursor-not-allowed shadow-indigo-100'
-                                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                                        }`}
+                                    disabled
+                                    className="w-full py-4 rounded-xl font-bold transition-all bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                                 >
-                                    {isSubmitting ? 'Sending...' : 'Send Message'}
+                                    Coming Soon
                                 </button>
                             </form>
                         )}
