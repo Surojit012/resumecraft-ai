@@ -13,9 +13,9 @@ export function Header() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
             <FileText size={20} />
           </div>
-          ResumeCraft AI
+          BuildMyResume
         </Link>
-        
+
         <nav className="hidden md:flex items-center gap-8">
           <Link to="/templates" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
             Templates
@@ -43,7 +43,7 @@ export function Header() {
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 border border-indigo-200">
                 <UserIcon size={20} />
               </div>
-              <button 
+              <button
                 onClick={() => logout()}
                 className="p-2 text-slate-400 hover:text-red-600 transition-colors"
                 title="Logout"
@@ -53,7 +53,7 @@ export function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => login()}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
               >
@@ -77,13 +77,13 @@ export function Footer() {
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
                 <FileText size={20} />
               </div>
-              ResumeCraft AI
+              BuildMyResume
             </div>
             <p className="text-sm text-slate-400">
               Build professional resumes in minutes with AI-powered suggestions and beautiful templates.
             </p>
           </div>
-          
+
           <div>
             <h3 className="font-semibold text-white mb-4">Product</h3>
             <ul className="space-y-2 text-sm">
@@ -114,9 +114,9 @@ export function Footer() {
             </div>
           </div>
         </div>
-        
+
         <div className="pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} ResumeCraft AI. All rights reserved.
+          © {new Date().getFullYear()} BuildMyResume. All rights reserved.
         </div>
       </div>
     </footer>
