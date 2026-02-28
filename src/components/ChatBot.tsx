@@ -62,7 +62,7 @@ export function ChatBot() {
           "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+          model: "accounts/fireworks/models/llama-v3-70b-instruct",
           messages: [
             systemInstruction,
             ...updatedMessages.map(msg => ({ role: msg.role, content: msg.content }))
@@ -188,8 +188,8 @@ export function ChatBot() {
                     {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                   </div>
                   <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-tr-none'
-                      : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'
+                    ? 'bg-indigo-600 text-white rounded-tr-none'
+                    : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'
                     }`}>
                     {msg.content}
                   </div>
