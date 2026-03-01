@@ -8,6 +8,7 @@ import { Header, Footer } from '@/components/Layout';
 import LandingPage from '@/pages/LandingPage';
 import TemplatesPage from '@/pages/TemplatesPage';
 import EditorPage from '@/pages/EditorPage';
+import PromptBuilderPage from '@/pages/PromptBuilderPage';
 import FeaturesPage from '@/pages/FeaturesPage';
 import PricingPage from '@/pages/PricingPage';
 import AuthPage from '@/pages/AuthPage';
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/templates" element={<TemplatesPage />} />
+            <Route path="/build" element={<PromptBuilderPage />} />
             <Route path="/editor/:templateId" element={<EditorPage />} />
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/pricing" element={<PricingPage />} />

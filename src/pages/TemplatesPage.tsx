@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ResumePreview } from '@/components/ResumePreview';
 import { initialResumeData } from '@/types';
 
-const templates = [
+export const templates = [
   {
     id: 'modern',
     name: 'Modern Clean',

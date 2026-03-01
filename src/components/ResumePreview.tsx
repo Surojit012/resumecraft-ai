@@ -19,9 +19,10 @@ import { SocialMediaTemplate } from './templates/SocialMediaTemplate';
 interface ResumePreviewProps {
   data: ResumeData;
   templateId?: string;
+  onUpdate?: (data: ResumeData) => void;
 }
 
-export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ data, templateId = 'modern' }, ref) => {
+export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ data, templateId = 'modern', onUpdate }, ref) => {
   const fontFamily = data.fontFamily || 'Inter';
 
   const renderTemplate = () => {
@@ -56,7 +57,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ d
         return <SocialMediaTemplate data={data} fontFamily={fontFamily} />;
       case 'modern':
       default:
-        return <ModernTemplate data={data} fontFamily={fontFamily} />;
+        return <ModernTemplate data={data} fontFamily={fontFamily} onUpdate={onUpdate} />;
     }
   };
 
