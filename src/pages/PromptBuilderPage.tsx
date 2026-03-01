@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { ResumeData, initialResumeData } from '@/types';
 import { generateFullResumeFromPrompt } from '@/services/ai';
 import { ResumePreview } from '@/components/ResumePreview';
-import { Sparkles, Loader2, Download, LayoutTemplate } from 'lucide-react';
+import { EditorForm } from '@/components/EditorForm';
+import { Sparkles, Loader2, Download, LayoutTemplate, PenTool, Wand2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { templates } from '@/pages/TemplatesPage'; // We need access to templates list
@@ -13,6 +14,7 @@ export default function PromptBuilderPage() {
     const [resumeData, setResumeData] = useState<ResumeData | null>(null);
     const [activeTemplate, setActiveTemplate] = useState('modern');
     const [isDownloading, setIsDownloading] = useState(false);
+    const [activeTab, setActiveTab] = useState<'ai' | 'manual'>('ai');
 
     const resumeRef = useRef<HTMLDivElement>(null);
 
@@ -65,39 +67,83 @@ export default function PromptBuilderPage() {
 
     return (
         <div className="min-h-[calc(100vh-4rem)] pt-16 bg-slate-50 flex flex-col md:flex-row">
-            {/* Left Panel: Prompt Input */}
-            <div className="w-full md:w-1/3 p-6 bg-white border-r border-slate-200 flex flex-col h-[calc(100vh-4rem)]">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <Sparkles className="text-indigo-600" /> AI Resume Builder
-                    </h1>
-                    <p className="text-slate-600 mt-2 text-sm">
-                        Describe your experience, skills, and goals. The AI will extract the details and craft a perfect resume.
-                    </p>
+            {/* Left Panel: Controls */}
+            <div className="w-full md:w-1/3 bg-white border-r border-slate-200 flex flex-col h-[calc(100vh-4rem)]">
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 bg-slate-50">
+                    <button
+                        onClick={() => setActiveTab('ai')}
+                        className={`flex-1 py-4 font-medium text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'ai'
+                                ? 'text-indigo-600 bg-white border-b-2 border-indigo-600'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                            }`}
+                    >
+                        <Wand2 size={16} /> AI Generation
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('manual')}
+                        className={`flex-1 py-4 font-medium text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'manual'
+                                ? 'text-indigo-600 bg-white border-b-2 border-indigo-600'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                            }`}
+                    >
+                        <PenTool size={16} /> Manual Edit
+                    </button>
                 </div>
 
-                <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="E.g. I worked as a Frontend Developer at TechCorp for 3 years using React and Tailwind. Before that..."
-                    className="flex-1 w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none font-medium text-slate-700 bg-slate-50"
-                />
-
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating || !prompt.trim()}
-                    className="mt-4 w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
-                >
-                    {isGenerating ? (
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    {activeTab === 'ai' ? (
                         <>
-                            <Loader2 className="animate-spin" /> Generating...
+                            <div className="mb-6">
+                                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="text-indigo-600" /> AI Resume Builder
+                                </h1>
+                                <p className="text-slate-600 mt-2 text-sm">
+                                    Describe your experience, skills, and goals. The AI will extract the details and craft a perfect resume.
+                                </p>
+                            </div>
+
+                            <textarea
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder="E.g. I worked as a Frontend Developer at TechCorp for 3 years using React and Tailwind. Before that..."
+                                className="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none font-medium text-slate-700 bg-slate-50 min-h-[50vh]"
+                            />
+
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isGenerating || !prompt.trim()}
+                                className="mt-4 w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <Loader2 className="animate-spin" /> Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles /> Generate Resume
+                                    </>
+                                )}
+                            </button>
                         </>
                     ) : (
-                        <>
-                            <Sparkles /> Generate Resume
-                        </>
+                        resumeData ? (
+                            <EditorForm data={resumeData} onChange={setResumeData} />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center p-6">
+                                <LayoutTemplate size={48} className="mb-4 text-slate-300" />
+                                <p className="text-lg font-medium text-slate-600">No Resume Data Yet</p>
+                                <p className="text-sm mt-2">Generate a resume using the AI tab first, or start from scratch.</p>
+                                <button
+                                    onClick={() => setResumeData(initialResumeData)}
+                                    className="mt-6 px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors"
+                                >
+                                    Start from Scratch
+                                </button>
+                            </div>
+                        )
                     )}
-                </button>
+                </div>
             </div>
 
             {/* Right Panel: Live Preview & Editor */}
