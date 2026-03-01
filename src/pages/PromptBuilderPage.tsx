@@ -124,6 +124,7 @@ export default function PromptBuilderPage() {
                                 ref={resumeRef}
                                 data={resumeData}
                                 templateId={activeTemplate}
+                                onUpdate={setResumeData}
                             />
                         </div>
                     ) : (
@@ -144,8 +145,8 @@ export default function PromptBuilderPage() {
                                     key={tpl.id}
                                     onClick={() => setActiveTemplate(tpl.id)}
                                     className={`w-32 h-[4.5rem] rounded-lg border-2 transition-all flex items-center justify-center overflow-hidden relative group ${activeTemplate === tpl.id
-                                            ? 'border-indigo-600 ring-2 ring-indigo-600/20'
-                                            : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-indigo-600 ring-2 ring-indigo-600/20'
+                                        : 'border-slate-200 hover:border-slate-300'
                                         }`}
                                 >
                                     <img src={tpl.image} alt={tpl.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
