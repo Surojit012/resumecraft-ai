@@ -130,24 +130,40 @@ export default function EditorPage() {
         onclone: (clonedDoc) => {
           const win = clonedDoc.defaultView;
           
-          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it
-          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
-            try {
-              const rules = Array.from(sheet.cssRules || []);
-              rules.forEach((rule) => {
-                if (win && rule instanceof win.CSSStyleRule) {
-                  const style = rule.style;
-                  for (let i = 0; i < style.length; i++) {
-                    const prop = style[i];
-                    const val = style.getPropertyValue(prop);
-                    if (val && typeof val === 'string' && val.includes('oklch')) {
-                      // Replace with a safe fallback — html2canvas just needs a valid color
-                      style.setProperty(prop, val.replace(/oklch\([^)]+\)/g, '#000000'));
-                    }
+          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it.
+          // We use a recursive function to handle nested rules like @media, @layer, and @supports.
+          const patchRules = (rules: CSSRuleList) => {
+            Array.from(rules).forEach((rule) => {
+              if (win && rule instanceof win.CSSStyleRule) {
+                const style = rule.style;
+                for (let i = 0; i < style.length; i++) {
+                  const prop = style[i];
+                  const val = style.getPropertyValue(prop);
+                  if (val && typeof val === 'string' && val.includes('oklch')) {
+                    // Replace with a safe fallback — html2canvas just needs a valid color
+                    style.setProperty(prop, val.replace(/oklch\([^)]+\)/g, '#000000'));
                   }
                 }
-              });
-            } catch {
+              } else if (win && (
+                rule instanceof win.CSSMediaRule || 
+                rule instanceof win.CSSSupportsRule || 
+                (win.CSSLayerBlockRule && rule instanceof win.CSSLayerBlockRule)
+              )) {
+                try {
+                  const nestedRules = (rule as any).cssRules;
+                  if (nestedRules) patchRules(nestedRules);
+                } catch (e) {
+                  // Some nested rules might be inaccessible
+                }
+              }
+            });
+          };
+
+          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+            try {
+              const rules = sheet.cssRules;
+              if (rules) patchRules(rules);
+            } catch (e) {
               // Cross-origin sheets will throw — skip them safely
             }
           });
