@@ -6,6 +6,8 @@ import { ResumePreview } from '@/components/ResumePreview';
 import { Download, Share2, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePrivy } from '@privy-io/react-auth';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const PORTFOLIO_SESSION_KEY = 'portfolio-resume-draft-v1';
 
@@ -87,8 +89,36 @@ export default function EditorPage() {
     }
   };
 
-  const handleDownload = () => {
-    window.print();
+  const handleDownload = async () => {
+    if (!previewRef.current || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      const element = previewRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${resumeData?.personalInfo.fullName || 'Resume'}_BuildMyResume.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
