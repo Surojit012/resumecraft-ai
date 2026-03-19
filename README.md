@@ -19,6 +19,7 @@ View your app in AI Studio: https://ai.studio/apps/ab8f7fa2-fd3a-4da2-ae31-0646b
    - `VITE_PRIVY_APP_ID` (required for auth UI)
    - `PRIVY_APP_SECRET` (required for backend token verification)
    - `FIREWORKS_API_KEY` (required for **server-side** Portfolio URL analysis)
+   - Optional: `DATABASE_PATH` (SQLite file path override)
    - Optional existing flows: `VITE_FIREWORKS_API_KEY` (for current client-side AI helpers)
 3. Run the app:
    `npm run dev`
@@ -28,3 +29,10 @@ View your app in AI Studio: https://ai.studio/apps/ab8f7fa2-fd3a-4da2-ae31-0646b
 - Supports public `http/https` portfolio website URLs.
 - AI analysis is executed on the backend (`/api/portfolio/analyze`) for better key security.
 - Private/local network URLs are blocked.
+
+## SQLite Runtime Notes
+
+- Local default: `./database.sqlite`
+- Vercel default: `/tmp/database.sqlite` (writable at runtime)
+- You can override with `DATABASE_PATH`.
+- On Vercel `/tmp` is ephemeral, so saved resumes may reset between cold starts/instance changes.

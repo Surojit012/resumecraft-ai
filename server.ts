@@ -21,8 +21,32 @@ const MAX_HTML_CHARS = 500_000;
 const MAX_EXTRACTED_TEXT_CHARS = 16_000;
 const MIN_EXTRACTED_TEXT_CHARS = 120;
 const FETCH_TIMEOUT_MS = 15_000;
+const DATABASE_PATH = process.env.DATABASE_PATH
+  ? process.env.DATABASE_PATH
+  : process.env.VERCEL
+    ? '/tmp/database.sqlite'
+    : 'database.sqlite';
 
-const db = new Database('database.sqlite');
+let db: Database.Database;
+try {
+  db = new Database(DATABASE_PATH);
+  console.log(`SQLite path: ${DATABASE_PATH}`);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS resumes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      data TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+} catch (error) {
+  console.error(`Failed to initialize SQLite at path: ${DATABASE_PATH}`);
+  console.error(error);
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    process.exit(1);
+  }
+  throw error;
+}
 
 // Initialize Privy Client
 const PRIVY_APP_ID = process.env.VITE_PRIVY_APP_ID;
@@ -36,16 +60,6 @@ if (PRIVY_APP_ID && PRIVY_APP_SECRET) {
 } else {
   console.warn('Privy credentials missing. Auth will be disabled/mocked.');
 }
-
-// Initialize database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS resumes (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    data TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5173;
