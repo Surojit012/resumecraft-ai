@@ -109,57 +109,61 @@ export default function PromptBuilderPage() {
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // html2canvas internal color parser doesn't support `oklch(...)` in some environments.
-          // Normalize any browser-computed oklch colors to the resolved `rgb(...)` values.
+          // html2canvas can throw on `oklch(...)`.
+          // Resolve any `oklch(...)` tokens into browser-parsed `rgb(...)` via canvas,
+          // then rewrite those styles inline inside the cloned DOM.
           const win = clonedDoc.defaultView;
-          let colorTmp: HTMLElement | null = null;
+          const canvasEl = clonedDoc.createElement('canvas');
+          canvasEl.width = 1;
+          canvasEl.height = 1;
+          const ctx = canvasEl.getContext('2d');
+
+          const resolveOklchToRgb = (input: string) => {
+            try {
+              if (!ctx) return input;
+              ctx.fillStyle = input;
+              return ctx.fillStyle as string;
+            } catch {
+              return input;
+            }
+          };
+
+          const replaceOklchInString = (input: string) => {
+            return input.replace(/oklch\([^)]+\)/g, (token) => resolveOklchToRgb(token));
+          };
+
           const normalizeOklchColors = (target: HTMLElement) => {
             if (!win) return;
             const cs = win.getComputedStyle(target);
-            const colorProps: Array<keyof CSSStyleDeclaration> = [
+
+            const directColorProps: Array<keyof CSSStyleDeclaration> = [
               'color',
               'backgroundColor',
               'borderTopColor',
               'borderRightColor',
               'borderBottomColor',
               'borderLeftColor',
+              'outlineColor',
+              'textDecorationColor',
+              'caretColor',
+              'fill',
+              'stroke',
             ];
 
-            const hasOklch = colorProps.some((p) => {
+            for (const p of directColorProps) {
               const v = (cs as any)[p];
-              return typeof v === 'string' && v.includes('oklch(');
-            });
-            if (!hasOklch) return;
-
-            if (!colorTmp) {
-              colorTmp = clonedDoc.createElement('div');
-              colorTmp.style.position = 'absolute';
-              colorTmp.style.left = '-9999px';
-              colorTmp.style.top = '0';
-              colorTmp.style.width = '1px';
-              colorTmp.style.height = '1px';
-              colorTmp.style.padding = '0';
-              colorTmp.style.margin = '0';
-              colorTmp.style.borderTopStyle = 'solid';
-              colorTmp.style.borderRightStyle = 'solid';
-              colorTmp.style.borderBottomStyle = 'solid';
-              colorTmp.style.borderLeftStyle = 'solid';
-              colorTmp.style.borderTopWidth = '1px';
-              colorTmp.style.borderRightWidth = '1px';
-              colorTmp.style.borderBottomWidth = '1px';
-              colorTmp.style.borderLeftWidth = '1px';
-              clonedDoc.body.appendChild(colorTmp);
+              if (typeof v === 'string' && v.includes('oklch(')) {
+                (target.style as any)[p] = resolveOklchToRgb(v);
+              }
             }
 
-            for (const p of colorProps) {
-              const v = (cs as any)[p];
-              if (typeof v === 'string' && v.includes('oklch(') && colorTmp) {
-                (colorTmp.style as any)[p] = v;
-                const resolved = (win.getComputedStyle(colorTmp) as any)[p];
-                if (typeof resolved === 'string' && resolved) {
-                  (target.style as any)[p] = resolved;
-                }
-              }
+            const boxShadow = cs.boxShadow;
+            if (boxShadow && boxShadow.includes('oklch(')) {
+              target.style.boxShadow = replaceOklchInString(boxShadow);
+            }
+            const textShadow = cs.textShadow;
+            if (textShadow && textShadow.includes('oklch(')) {
+              target.style.textShadow = replaceOklchInString(textShadow);
             }
           };
 
@@ -218,10 +222,8 @@ export default function PromptBuilderPage() {
               templateContainer.style.whiteSpace = 'normal';
             }
 
-            // Cleanup temp node
-            if (colorTmp) {
-              colorTmp.remove();
-            }
+            // Cleanup canvas node
+            canvasEl.remove();
           }
         }
       });

@@ -127,60 +127,65 @@ export default function EditorPage() {
         backgroundColor: '#ffffff',
         windowWidth: 1200,
         onclone: (clonedDoc) => {
-          // html2canvas's internal color parser doesn't support modern color spaces like `oklch(...)`.
-          // Some browsers return computed colors in `oklch(...)`, so we proactively normalize them to
-          // the browser-resolved `rgb(...)` equivalents inside the cloned DOM.
+          // html2canvas can throw when encountering `oklch(...)` strings.
+          // We resolve any `oklch(...)` values into browser-parsed `rgb(...)` equivalents
+          // using a canvas context, then rewrite those styles inline in the cloned DOM.
           const win = clonedDoc.defaultView;
-          let colorTmp: HTMLElement | null = null;
+          const canvasEl = clonedDoc.createElement('canvas');
+          canvasEl.width = 1;
+          canvasEl.height = 1;
+          const ctx = canvasEl.getContext('2d');
+
+          const resolveOklchToRgb = (input: string) => {
+            try {
+              if (!ctx) return input;
+              // Using canvas forces the browser's color parser to convert it to a supported format.
+              ctx.fillStyle = input;
+              return ctx.fillStyle as string;
+            } catch {
+              return input;
+            }
+          };
+
+          const replaceOklchInString = (input: string) => {
+            // Replace every `oklch(...)` token in larger strings like shadows.
+            return input.replace(/oklch\([^)]+\)/g, (token) => resolveOklchToRgb(token));
+          };
+
           const normalizeOklchColors = (target: HTMLElement) => {
             if (!win) return;
             const cs = win.getComputedStyle(target);
 
-            const colorProps: Array<keyof CSSStyleDeclaration> = [
+            const directColorProps: Array<keyof CSSStyleDeclaration> = [
               'color',
               'backgroundColor',
               'borderTopColor',
               'borderRightColor',
               'borderBottomColor',
               'borderLeftColor',
+              'outlineColor',
+              'textDecorationColor',
+              'caretColor',
+              // SVG presentation attributes sometimes end up here.
+              'fill',
+              'stroke',
             ];
 
-            // Fast path: bail if nothing in the key color properties uses oklch.
-            const hasOklch = colorProps.some((p) => {
+            for (const p of directColorProps) {
               const v = (cs as any)[p];
-              return typeof v === 'string' && v.includes('oklch(');
-            });
-            if (!hasOklch) return;
-
-            if (!colorTmp) {
-              colorTmp = clonedDoc.createElement('div');
-              colorTmp.style.position = 'absolute';
-              colorTmp.style.left = '-9999px';
-              colorTmp.style.top = '0';
-              colorTmp.style.width = '1px';
-              colorTmp.style.height = '1px';
-              colorTmp.style.padding = '0';
-              colorTmp.style.margin = '0';
-              colorTmp.style.borderTopStyle = 'solid';
-              colorTmp.style.borderRightStyle = 'solid';
-              colorTmp.style.borderBottomStyle = 'solid';
-              colorTmp.style.borderLeftStyle = 'solid';
-              colorTmp.style.borderTopWidth = '1px';
-              colorTmp.style.borderRightWidth = '1px';
-              colorTmp.style.borderBottomWidth = '1px';
-              colorTmp.style.borderLeftWidth = '1px';
-              clonedDoc.body.appendChild(colorTmp);
+              if (typeof v === 'string' && v.includes('oklch(')) {
+                (target.style as any)[p] = resolveOklchToRgb(v);
+              }
             }
 
-            for (const p of colorProps) {
-              const v = (cs as any)[p];
-              if (typeof v === 'string' && v.includes('oklch(') && colorTmp) {
-                (colorTmp.style as any)[p] = v;
-                const resolved = (win.getComputedStyle(colorTmp) as any)[p];
-                if (typeof resolved === 'string' && resolved) {
-                  (target.style as any)[p] = resolved;
-                }
-              }
+            // Shadows often contain color tokens embedded in a larger string.
+            const boxShadow = cs.boxShadow;
+            if (boxShadow && boxShadow.includes('oklch(')) {
+              target.style.boxShadow = replaceOklchInString(boxShadow);
+            }
+            const textShadow = cs.textShadow;
+            if (textShadow && textShadow.includes('oklch(')) {
+              target.style.textShadow = replaceOklchInString(textShadow);
             }
           };
 
@@ -242,11 +247,8 @@ export default function EditorPage() {
               templateContainer.style.wordSpacing = 'normal';
               templateContainer.style.whiteSpace = 'normal';
             }
-
-            // Cleanup temp node
-            if (colorTmp) {
-              colorTmp.remove();
-            }
+            // Cleanup canvas node
+            canvasEl.remove();
           }
         }
       });
