@@ -100,13 +100,19 @@ export default function EditorPage() {
       const origScrollY = window.scrollY;
       window.scrollTo(0, 0);
 
+      // Ensure fonts are ready before capture
+      await document.fonts.ready;
+
       const canvas = await html2canvas(element, {
-        scale: 2, // Use 2 for good balance of quality and performance
+        scale: 3, // High scale for crisp text and graphics
         useCORS: true,
-        logging: true, // Enable logging for debugging
+        logging: true,
         backgroundColor: '#ffffff',
-        windowWidth: 1200, // Fixed width for consistent rendering
+        windowWidth: 1200,
         onclone: (clonedDoc) => {
+          // Add a special class to the body of the cloned doc to help with selection
+          clonedDoc.body.classList.add('html2canvas-cloned');
+          
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
             // Reset all transforms and scaling for capture
@@ -117,17 +123,26 @@ export default function EditorPage() {
             clonedElement.style.margin = '0';
             clonedElement.style.padding = '0';
             clonedElement.style.display = 'block';
+            clonedElement.style.position = 'relative';
             
-            // Fix all parents that might have overflow issues
+            // Fix all parents that might have overflow issues or transforms
             let parent = clonedElement.parentElement;
-            while (parent) {
+            while (parent && parent !== clonedDoc.body) {
               parent.style.transform = 'none';
               parent.style.scale = '1';
               parent.style.overflow = 'visible';
               parent.style.height = 'auto';
               parent.style.margin = '0';
               parent.style.padding = '0';
+              parent.style.display = 'block';
               parent = parent.parentElement;
+            }
+
+            // Ensure the main template container itself is not being cut off
+            const templateContainer = clonedElement.querySelector('.bg-white.w-\\[210mm\\]') as HTMLElement;
+            if (templateContainer) {
+              templateContainer.style.boxShadow = 'none'; // Remove shadow in PDF
+              templateContainer.style.margin = '0';
             }
           }
         }
@@ -167,10 +182,9 @@ export default function EditorPage() {
 
       const fileName = `${resumeData?.personalInfo.fullName.replace(/\s+/g, '_') || 'Resume'}_BuildMyResume.pdf`;
       pdf.save(fileName);
-      console.log('PDF generated successfully:', fileName);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details and try again.');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloading(false);
     }
