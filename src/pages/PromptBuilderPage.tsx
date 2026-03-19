@@ -109,6 +109,60 @@ export default function PromptBuilderPage() {
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
+          // html2canvas internal color parser doesn't support `oklch(...)` in some environments.
+          // Normalize any browser-computed oklch colors to the resolved `rgb(...)` values.
+          const win = clonedDoc.defaultView;
+          let colorTmp: HTMLElement | null = null;
+          const normalizeOklchColors = (target: HTMLElement) => {
+            if (!win) return;
+            const cs = win.getComputedStyle(target);
+            const colorProps: Array<keyof CSSStyleDeclaration> = [
+              'color',
+              'backgroundColor',
+              'borderTopColor',
+              'borderRightColor',
+              'borderBottomColor',
+              'borderLeftColor',
+            ];
+
+            const hasOklch = colorProps.some((p) => {
+              const v = (cs as any)[p];
+              return typeof v === 'string' && v.includes('oklch(');
+            });
+            if (!hasOklch) return;
+
+            if (!colorTmp) {
+              colorTmp = clonedDoc.createElement('div');
+              colorTmp.style.position = 'absolute';
+              colorTmp.style.left = '-9999px';
+              colorTmp.style.top = '0';
+              colorTmp.style.width = '1px';
+              colorTmp.style.height = '1px';
+              colorTmp.style.padding = '0';
+              colorTmp.style.margin = '0';
+              colorTmp.style.borderTopStyle = 'solid';
+              colorTmp.style.borderRightStyle = 'solid';
+              colorTmp.style.borderBottomStyle = 'solid';
+              colorTmp.style.borderLeftStyle = 'solid';
+              colorTmp.style.borderTopWidth = '1px';
+              colorTmp.style.borderRightWidth = '1px';
+              colorTmp.style.borderBottomWidth = '1px';
+              colorTmp.style.borderLeftWidth = '1px';
+              clonedDoc.body.appendChild(colorTmp);
+            }
+
+            for (const p of colorProps) {
+              const v = (cs as any)[p];
+              if (typeof v === 'string' && v.includes('oklch(') && colorTmp) {
+                (colorTmp.style as any)[p] = v;
+                const resolved = (win.getComputedStyle(colorTmp) as any)[p];
+                if (typeof resolved === 'string' && resolved) {
+                  (target.style as any)[p] = resolved;
+                }
+              }
+            }
+          };
+
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
             // Normalize spacing + whitespace in the cloned subtree so words don't run together.
@@ -131,7 +185,13 @@ export default function PromptBuilderPage() {
               el.style.letterSpacing = 'normal';
               el.style.wordSpacing = 'normal';
               el.style.whiteSpace = 'normal';
+              normalizeOklchColors(el as HTMLElement);
             });
+
+            // Also normalize the clone document's body for background sampling.
+            if (clonedDoc.body) {
+              normalizeOklchColors(clonedDoc.body);
+            }
 
             // Ensure parents don't constrain the absolute positioned clone.
             let parent = clonedElement.parentElement;
@@ -156,6 +216,11 @@ export default function PromptBuilderPage() {
               templateContainer.style.letterSpacing = 'normal';
               templateContainer.style.wordSpacing = 'normal';
               templateContainer.style.whiteSpace = 'normal';
+            }
+
+            // Cleanup temp node
+            if (colorTmp) {
+              colorTmp.remove();
             }
           }
         }

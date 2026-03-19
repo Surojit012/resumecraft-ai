@@ -127,6 +127,63 @@ export default function EditorPage() {
         backgroundColor: '#ffffff',
         windowWidth: 1200,
         onclone: (clonedDoc) => {
+          // html2canvas's internal color parser doesn't support modern color spaces like `oklch(...)`.
+          // Some browsers return computed colors in `oklch(...)`, so we proactively normalize them to
+          // the browser-resolved `rgb(...)` equivalents inside the cloned DOM.
+          const win = clonedDoc.defaultView;
+          let colorTmp: HTMLElement | null = null;
+          const normalizeOklchColors = (target: HTMLElement) => {
+            if (!win) return;
+            const cs = win.getComputedStyle(target);
+
+            const colorProps: Array<keyof CSSStyleDeclaration> = [
+              'color',
+              'backgroundColor',
+              'borderTopColor',
+              'borderRightColor',
+              'borderBottomColor',
+              'borderLeftColor',
+            ];
+
+            // Fast path: bail if nothing in the key color properties uses oklch.
+            const hasOklch = colorProps.some((p) => {
+              const v = (cs as any)[p];
+              return typeof v === 'string' && v.includes('oklch(');
+            });
+            if (!hasOklch) return;
+
+            if (!colorTmp) {
+              colorTmp = clonedDoc.createElement('div');
+              colorTmp.style.position = 'absolute';
+              colorTmp.style.left = '-9999px';
+              colorTmp.style.top = '0';
+              colorTmp.style.width = '1px';
+              colorTmp.style.height = '1px';
+              colorTmp.style.padding = '0';
+              colorTmp.style.margin = '0';
+              colorTmp.style.borderTopStyle = 'solid';
+              colorTmp.style.borderRightStyle = 'solid';
+              colorTmp.style.borderBottomStyle = 'solid';
+              colorTmp.style.borderLeftStyle = 'solid';
+              colorTmp.style.borderTopWidth = '1px';
+              colorTmp.style.borderRightWidth = '1px';
+              colorTmp.style.borderBottomWidth = '1px';
+              colorTmp.style.borderLeftWidth = '1px';
+              clonedDoc.body.appendChild(colorTmp);
+            }
+
+            for (const p of colorProps) {
+              const v = (cs as any)[p];
+              if (typeof v === 'string' && v.includes('oklch(') && colorTmp) {
+                (colorTmp.style as any)[p] = v;
+                const resolved = (win.getComputedStyle(colorTmp) as any)[p];
+                if (typeof resolved === 'string' && resolved) {
+                  (target.style as any)[p] = resolved;
+                }
+              }
+            }
+          };
+
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
             // Reset all spacing and scaling for capture
@@ -147,7 +204,14 @@ export default function EditorPage() {
               el.style.letterSpacing = 'normal';
               el.style.wordSpacing = 'normal';
               el.style.whiteSpace = 'normal';
+              normalizeOklchColors(el as HTMLElement);
             });
+
+            // Also normalize the clone document's body in case its background uses oklch
+            // (html2canvas may sample it for rendering).
+            if (clonedDoc.body) {
+              normalizeOklchColors(clonedDoc.body);
+            }
 
             // Ensure the element is not clipped
             clonedElement.style.position = 'absolute';
@@ -177,6 +241,11 @@ export default function EditorPage() {
               templateContainer.style.letterSpacing = 'normal';
               templateContainer.style.wordSpacing = 'normal';
               templateContainer.style.whiteSpace = 'normal';
+            }
+
+            // Cleanup temp node
+            if (colorTmp) {
+              colorTmp.remove();
             }
           }
         }
