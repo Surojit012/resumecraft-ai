@@ -15,6 +15,16 @@ View your app in AI Studio: https://ai.studio/apps/ab8f7fa2-fd3a-4da2-ae31-0646b
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Configure environment variables in `.env`:
+   - `VITE_PRIVY_APP_ID` (required for auth UI)
+   - `PRIVY_APP_SECRET` (required for backend token verification)
+   - `FIREWORKS_API_KEY` (required for **server-side** Portfolio URL analysis)
+   - Optional existing flows: `VITE_FIREWORKS_API_KEY` (for current client-side AI helpers)
 3. Run the app:
    `npm run dev`
+
+## Portfolio URL Builder (v1)
+
+- Supports public `http/https` portfolio website URLs.
+- AI analysis is executed on the backend (`/api/portfolio/analyze`) for better key security.
+- Private/local network URLs are blocked.

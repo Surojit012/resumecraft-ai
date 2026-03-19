@@ -1,4 +1,8 @@
 export interface ResumeData {
+  sourceMeta?: {
+    url: string;
+    title?: string;
+  };
   personalInfo: {
     fullName: string;
     email: string;
