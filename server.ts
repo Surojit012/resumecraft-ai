@@ -19,7 +19,7 @@ const PORTFOLIO_USER_AGENT = 'BuildMyResumeBot/1.0 (+https://buildmyresume.local
 const MAX_URL_LENGTH = 2048;
 const MAX_HTML_CHARS = 500_000;
 const MAX_EXTRACTED_TEXT_CHARS = 16_000;
-const MIN_EXTRACTED_TEXT_CHARS = 120;
+const MIN_EXTRACTED_TEXT_CHARS = 20;
 const FETCH_TIMEOUT_MS = 15_000;
 const DATABASE_PATH = process.env.DATABASE_PATH
   ? process.env.DATABASE_PATH
@@ -194,6 +194,15 @@ function extractReadableText(html: string): { title?: string; text: string } {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   const title = titleMatch ? decodeHtmlEntities(titleMatch[1].replace(/\s+/g, ' ').trim()) : undefined;
 
+  // Extract meta description
+  const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i) ||
+                        html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i);
+  const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
+                      html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i);
+
+  const metaDesc = metaDescMatch ? decodeHtmlEntities(metaDescMatch[1].trim()) : '';
+  const ogDesc = ogDescMatch ? decodeHtmlEntities(ogDescMatch[1].trim()) : '';
+
   const cleaned = html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -204,12 +213,16 @@ function extractReadableText(html: string): { title?: string; text: string } {
     .replace(/<header[\s\S]*?<\/header>/gi, ' ')
     .replace(/<[^>]+>/g, ' ');
 
-  const text = decodeHtmlEntities(cleaned)
+  let text = decodeHtmlEntities(cleaned)
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, MAX_EXTRACTED_TEXT_CHARS);
+    .trim();
 
-  return { title, text };
+  // Combine with meta descriptions to ensure enough content for SPAs
+  if (metaDesc || ogDesc) {
+    text = `${text} ${metaDesc} ${ogDesc}`.trim();
+  }
+
+  return { title, text: text.slice(0, MAX_EXTRACTED_TEXT_CHARS) };
 }
 
 function normalizeResumeData(raw: any): PortfolioResumeData {
