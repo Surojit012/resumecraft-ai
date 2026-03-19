@@ -95,27 +95,82 @@ export default function EditorPage() {
     setIsDownloading(true);
     try {
       const element = previewRef.current;
+      
+      // Store original scroll position
+      const origScrollY = window.scrollY;
+      window.scrollTo(0, 0);
+
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 2, // Use 2 for good balance of quality and performance
         useCORS: true,
-        logging: false,
+        logging: true, // Enable logging for debugging
+        backgroundColor: '#ffffff',
+        windowWidth: 1200, // Fixed width for consistent rendering
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
+          if (clonedElement) {
+            // Reset all transforms and scaling for capture
+            clonedElement.style.transform = 'none';
+            clonedElement.style.scale = '1';
+            clonedElement.style.width = '210mm';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.margin = '0';
+            clonedElement.style.padding = '0';
+            clonedElement.style.display = 'block';
+            
+            // Fix all parents that might have overflow issues
+            let parent = clonedElement.parentElement;
+            while (parent) {
+              parent.style.transform = 'none';
+              parent.style.scale = '1';
+              parent.style.overflow = 'visible';
+              parent.style.height = 'auto';
+              parent.style.margin = '0';
+              parent.style.padding = '0';
+              parent = parent.parentElement;
+            }
+          }
+        }
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      // Restore scroll position
+      window.scrollTo(0, origScrollY);
+
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // Initialize PDF with A4 dimensions
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
+      const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      let heightLeft = pdfHeight;
+      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${resumeData?.personalInfo.fullName || 'Resume'}_BuildMyResume.pdf`);
+      // Add the first page
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      // Add subsequent pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = `${resumeData?.personalInfo.fullName.replace(/\s+/g, '_') || 'Resume'}_BuildMyResume.pdf`;
+      pdf.save(fileName);
+      console.log('PDF generated successfully:', fileName);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      alert('Failed to generate PDF. Please check the console for details and try again.');
     } finally {
       setIsDownloading(false);
     }
@@ -182,7 +237,9 @@ export default function EditorPage() {
           {/* Preview Panel */}
           <div className="h-[calc(100vh-12rem)] overflow-y-auto bg-slate-200/50 rounded-xl border border-slate-200 flex justify-center p-8 custom-scrollbar print:h-auto print:overflow-visible print:bg-white print:border-none print:p-0 print:block">
             <div className="scale-[0.8] origin-top print:scale-100">
-              <ResumePreview ref={previewRef} data={resumeData} templateId={templateId} />
+              <div data-resume-preview>
+                <ResumePreview ref={previewRef} data={resumeData} templateId={templateId} />
+              </div>
             </div>
           </div>
         </div>
