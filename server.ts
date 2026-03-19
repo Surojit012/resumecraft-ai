@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dns from 'dns/promises';
@@ -477,6 +476,7 @@ app.post('/api/portfolio/analyze', async (req, res) => {
 
 // For local development, Vercel sets process.env.VERCEL to '1'
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: 'spa',
