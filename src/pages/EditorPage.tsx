@@ -126,11 +126,45 @@ export default function EditorPage() {
         logging: true,
         backgroundColor: '#ffffff',
         windowWidth: 1200,
+        ignoreElements: (el) => el.tagName === 'SCRIPT',
         onclone: (clonedDoc) => {
+          const win = clonedDoc.defaultView;
+          
+          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it
+          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+            try {
+              const rules = Array.from(sheet.cssRules || []);
+              rules.forEach((rule) => {
+                if (win && rule instanceof win.CSSStyleRule) {
+                  const style = rule.style;
+                  for (let i = 0; i < style.length; i++) {
+                    const prop = style[i];
+                    const val = style.getPropertyValue(prop);
+                    if (val && typeof val === 'string' && val.includes('oklch')) {
+                      // Replace with a safe fallback — html2canvas just needs a valid color
+                      style.setProperty(prop, val.replace(/oklch\([^)]+\)/g, '#000000'));
+                    }
+                  }
+                }
+              });
+            } catch {
+              // Cross-origin sheets will throw — skip them safely
+            }
+          });
+
+          // STEP 2: Also inject an override <style> tag to blanket-reset oklch in Tailwind/DaisyUI CSS vars
+          const overrideStyle = clonedDoc.createElement('style');
+          overrideStyle.textContent = `
+            *, *::before, *::after {
+              --tw-ring-color: #3b82f6 !important;
+              --tw-shadow-color: #000 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(overrideStyle);
+
           // html2canvas can throw when encountering `oklch(...)` strings.
           // We resolve any `oklch(...)` values into browser-parsed `rgb(...)` equivalents
           // using a canvas context, then rewrite those styles inline in the cloned DOM.
-          const win = clonedDoc.defaultView;
           const canvasEl = clonedDoc.createElement('canvas');
           canvasEl.width = 1;
           canvasEl.height = 1;
