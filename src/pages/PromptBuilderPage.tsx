@@ -104,15 +104,64 @@ export default function PromptBuilderPage() {
       await document.fonts.ready;
 
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 2, // Use scale 2 as requested for stability
         useCORS: true,
-        logging: false,
+        logging: true,
         backgroundColor: '#ffffff',
+        windowWidth: 1200,
+        ignoreElements: (el) => el.tagName === 'SCRIPT',
         onclone: (clonedDoc) => {
-          // html2canvas can throw on `oklch(...)`.
-          // Resolve any `oklch(...)` tokens into browser-parsed `rgb(...)` via canvas,
-          // then rewrite those styles inline inside the cloned DOM.
           const win = clonedDoc.defaultView;
+          
+          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it.
+          // We use a recursive function to handle nested rules like @media, @layer, and @supports.
+          const patchRules = (rules: CSSRuleList) => {
+            Array.from(rules).forEach((rule) => {
+              if (win && rule instanceof win.CSSStyleRule) {
+                const style = rule.style;
+                for (let i = 0; i < style.length; i++) {
+                  const prop = style[i];
+                  const val = style.getPropertyValue(prop);
+                  if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                    // Replace with a safe fallback — html2canvas just needs a valid color
+                    style.setProperty(prop, val.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
+                  }
+                }
+              } else if (win && (
+                rule instanceof win.CSSMediaRule || 
+                rule instanceof win.CSSSupportsRule || 
+                (win.CSSLayerBlockRule && rule instanceof win.CSSLayerBlockRule)
+              )) {
+                try {
+                  const nestedRules = (rule as any).cssRules;
+                  if (nestedRules) patchRules(nestedRules);
+                } catch (e) {
+                  // Some nested rules might be inaccessible
+                }
+              }
+            });
+          };
+
+          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+            try {
+              const rules = sheet.cssRules;
+              if (rules) patchRules(rules);
+            } catch (e) {
+              // Cross-origin sheets will throw — skip them safely
+            }
+          });
+
+          // STEP 2: Also inject an override <style> tag to blanket-reset oklch in Tailwind/DaisyUI CSS vars
+          const overrideStyle = clonedDoc.createElement('style');
+          overrideStyle.textContent = `
+            *, *::before, *::after {
+              --tw-ring-color: #3b82f6 !important;
+              --tw-shadow-color: #000 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(overrideStyle);
+
+          // Resolve oklch values in inline computed styles using a canvas context.
           const canvasEl = clonedDoc.createElement('canvas');
           canvasEl.width = 1;
           canvasEl.height = 1;
@@ -120,52 +169,60 @@ export default function PromptBuilderPage() {
 
           const resolveOklchToRgb = (input: string) => {
             try {
-              if (!ctx) return input;
+              if (!ctx) return '#000000';
+              ctx.fillStyle = '#000000'; // Default fallback
               ctx.fillStyle = input;
-              return ctx.fillStyle as string;
+              const resolved = ctx.fillStyle as string;
+              // If browser doesn't support the color, it remains '#000000' or same string.
+              // We MUST NOT pass oklch/oklab back to html2canvas.
+              if (!resolved || resolved.includes('oklch(') || resolved.includes('oklab(')) {
+                return '#000000';
+              }
+              return resolved;
             } catch {
-              return input;
+              return '#000000';
             }
           };
 
-          const replaceOklchInString = (input: string) => {
-            return input.replace(/oklch\([^)]+\)/g, (token) => resolveOklchToRgb(token));
+          const replaceOklabOklchInString = (input: string) => {
+            if (!input || typeof input !== 'string') return input;
+            return input.replace(/(oklch|oklab)\([^)]+\)/g, (token) => resolveOklchToRgb(token));
           };
-
           const normalizeOklchColors = (target: HTMLElement) => {
             if (!win) return;
             const cs = win.getComputedStyle(target);
 
-            const directColorProps: Array<keyof CSSStyleDeclaration> = [
-              'color',
-              'backgroundColor',
-              'borderTopColor',
-              'borderRightColor',
-              'borderBottomColor',
-              'borderLeftColor',
-              'outlineColor',
-              'textDecorationColor',
-              'caretColor',
-              'fill',
-              'stroke',
-            ];
-
-            for (const p of directColorProps) {
-              const v = (cs as any)[p];
-              if (typeof v === 'string' && v.includes('oklch(')) {
-                (target.style as any)[p] = resolveOklchToRgb(v);
+            // Aggressively check all computed properties for oklch/oklab
+            for (let i = 0; i < cs.length; i++) {
+              const p = cs[i];
+              if (!p) continue;
+              const v = cs.getPropertyValue(p);
+              if (v && typeof v === 'string' && (v.includes('oklch(') || v.includes('oklab('))) {
+                target.style.setProperty(p, replaceOklabOklchInString(v));
               }
             }
-
-            const boxShadow = cs.boxShadow;
-            if (boxShadow && boxShadow.includes('oklch(')) {
-              target.style.boxShadow = replaceOklchInString(boxShadow);
-            }
-            const textShadow = cs.textShadow;
-            if (textShadow && textShadow.includes('oklch(')) {
-              target.style.textShadow = replaceOklchInString(textShadow);
-            }
+            // Ensure common variables are also covered if not caught by computed style iteration
+            const commonVars = ['--tw-ring-color', '--tw-shadow-color', '--tw-border-opacity', '--tw-bg-opacity', '--tw-text-opacity'];
+            commonVars.forEach(vName => {
+               const val = cs.getPropertyValue(vName);
+               if (val && (val.includes('oklch') || val.includes('oklab'))) {
+                 target.style.setProperty(vName, replaceOklabOklchInString(val));
+               }
+            });
           };
+
+          // STEP 3: Patch all <style> tags and element attributes directly for good measure
+          clonedDoc.querySelectorAll('style').forEach(s => {
+            s.textContent = s.textContent?.replace(/(oklch|oklab)\([^)]+\)/g, '#000000') || '';
+          });
+          clonedDoc.querySelectorAll('*').forEach(el => {
+            if (el instanceof HTMLElement) {
+              const styleAttr = el.getAttribute('style');
+              if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+                el.setAttribute('style', styleAttr.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
+              }
+            }
+          });
 
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
@@ -212,7 +269,7 @@ export default function PromptBuilderPage() {
               parent = parent.parentElement;
             }
 
-            // Clean up the resume template container (if present).
+            // Clean up the resume template container within.
             const templateContainer = clonedElement.querySelector('.bg-white.w-\\[210mm\\]') as HTMLElement;
             if (templateContainer) {
               templateContainer.style.boxShadow = 'none';
@@ -254,7 +311,7 @@ export default function PromptBuilderPage() {
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
         heightLeft -= pageHeight;
       }
-      pdf.save(`${resumeData?.personalInfo.fullName || 'Resume'}_BuildMyResume.pdf`);
+      pdf.save(`${resumeData?.personalInfo.fullName.replace(/\s+/g, '_') || 'Resume'}_BuildMyResume.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -315,64 +372,85 @@ export default function PromptBuilderPage() {
                 </p>
               </div>
 
-              <div className="space-y-3 p-4 rounded-xl border border-slate-200 bg-slate-50">
-                <label className="text-sm font-semibold text-slate-700">Step 1: Portfolio URL</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <LinkIcon size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input
-                      type="url"
-                      value={portfolioUrl}
-                      onChange={(e) => setPortfolioUrl(e.target.value)}
-                      placeholder="https://yourportfolio.com"
-                      className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                    />
+              {!isPortfolioAnalysisReady && (
+                <div className="space-y-3 p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <label className="text-sm font-semibold text-slate-700">Enter Portfolio URL</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon size={16} className="absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type="url"
+                        value={portfolioUrl}
+                        onChange={(e) => setPortfolioUrl(e.target.value)}
+                        placeholder="https://yourportfolio.com"
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none shadow-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={handleAnalyzePortfolio}
+                      disabled={isAnalyzingPortfolio || !portfolioUrl.trim()}
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-200 transition-all active:scale-95"
+                    >
+                      {isAnalyzingPortfolio ? 'Analyzing...' : 'Analyze'}
+                    </button>
                   </div>
-                  <button
-                    onClick={handleAnalyzePortfolio}
-                    disabled={isAnalyzingPortfolio || !portfolioUrl.trim()}
-                    className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {isAnalyzingPortfolio ? 'Analyzing...' : 'Analyze'}
-                  </button>
+
+                  {analysisError && <p className="text-sm text-red-600 font-medium">{analysisError}</p>}
                 </div>
-
-                {analysisError && <p className="text-sm text-red-600">{analysisError}</p>}
-
-                {resumeData?.sourceMeta?.url && (
-                  <div className="text-xs text-slate-600 bg-white border border-slate-200 rounded-md p-2">
-                    <span className="font-semibold">Analyzed:</span> {resumeData.sourceMeta.url}
-                    {resumeData.sourceMeta.title ? ` (${resumeData.sourceMeta.title})` : ''}
-                  </div>
-                )}
-              </div>
+              )}
 
               {isPortfolioAnalysisReady && resumeData && (
-                <div className="mt-4 space-y-3 p-4 rounded-xl border border-slate-200 bg-white">
-                  <label className="text-sm font-semibold text-slate-700">Step 2: Choose Template</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {templates.slice(0, 8).map((tpl) => (
-                      <button
-                        key={tpl.id}
-                        onClick={() => setActiveTemplate(tpl.id)}
-                        className={`relative rounded-lg overflow-hidden border-2 ${
-                          activeTemplate === tpl.id ? 'border-indigo-600' : 'border-slate-200'
-                        }`}
-                      >
-                        <img src={tpl.image} alt={tpl.name} className="h-16 w-full object-cover" />
-                        <span className="absolute inset-x-0 bottom-0 bg-black/65 text-white text-[10px] py-0.5 px-1 truncate">
-                          {tpl.name}
-                        </span>
-                      </button>
-                    ))}
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 flex items-center justify-between">
+                    <div>
+                      <p className="text-emerald-800 font-bold text-sm">Portfolio Analyzed!</p>
+                      <p className="text-emerald-600 text-xs">Ready to download or refine.</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsPortfolioAnalysisReady(false)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      Change URL
+                    </button>
                   </div>
 
-                  <button
-                    onClick={handleOpenInEditor}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800"
-                  >
-                    <ExternalLink size={16} /> Step 3: Open in Editor
-                  </button>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Choose Style</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {templates.slice(0, 8).map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          onClick={() => setActiveTemplate(tpl.id)}
+                          className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                            activeTemplate === tpl.id ? 'border-indigo-600 shadow-md ring-2 ring-indigo-100' : 'border-slate-100 hover:border-slate-200'
+                          }`}
+                        >
+                          <img src={tpl.image} alt={tpl.name} className="h-16 w-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <span className="text-white text-[10px] font-bold">Apply</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        onClick={downloadPDF}
+                        disabled={isDownloading}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
+                      >
+                        {isDownloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                        Download Resume PDF
+                      </button>
+                      
+                      <button
+                        onClick={handleOpenInEditor}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 font-semibold text-sm transition-colors"
+                      >
+                        <PenTool size={14} /> Refine in Editor
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

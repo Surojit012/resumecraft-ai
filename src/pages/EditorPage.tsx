@@ -139,9 +139,9 @@ export default function EditorPage() {
                 for (let i = 0; i < style.length; i++) {
                   const prop = style[i];
                   const val = style.getPropertyValue(prop);
-                  if (val && typeof val === 'string' && val.includes('oklch')) {
+                  if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
                     // Replace with a safe fallback — html2canvas just needs a valid color
-                    style.setProperty(prop, val.replace(/oklch\([^)]+\)/g, '#000000'));
+                    style.setProperty(prop, val.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
                   }
                 }
               } else if (win && (
@@ -188,56 +188,60 @@ export default function EditorPage() {
 
           const resolveOklchToRgb = (input: string) => {
             try {
-              if (!ctx) return input;
-              // Using canvas forces the browser's color parser to convert it to a supported format.
+              if (!ctx) return '#000000';
+              ctx.fillStyle = '#000000'; // Default fallback
               ctx.fillStyle = input;
-              return ctx.fillStyle as string;
+              const resolved = ctx.fillStyle as string;
+              // If browser doesn't support the color, it remains '#000000' or same string.
+              if (!resolved || resolved.includes('oklch(') || resolved.includes('oklab(')) {
+                return '#000000';
+              }
+              return resolved;
             } catch {
-              return input;
+              return '#000000';
             }
           };
 
-          const replaceOklchInString = (input: string) => {
-            // Replace every `oklch(...)` token in larger strings like shadows.
-            return input.replace(/oklch\([^)]+\)/g, (token) => resolveOklchToRgb(token));
+          const replaceOklabOklchInString = (input: string) => {
+            if (!input || typeof input !== 'string') return input;
+            return input.replace(/(oklch|oklab)\([^)]+\)/g, (token) => resolveOklchToRgb(token));
           };
 
           const normalizeOklchColors = (target: HTMLElement) => {
-            if (!win) return;
-            const cs = win.getComputedStyle(target);
+            const cs = win?.getComputedStyle(target);
+            if (!cs) return;
 
-            const directColorProps: Array<keyof CSSStyleDeclaration> = [
-              'color',
-              'backgroundColor',
-              'borderTopColor',
-              'borderRightColor',
-              'borderBottomColor',
-              'borderLeftColor',
-              'outlineColor',
-              'textDecorationColor',
-              'caretColor',
-              // SVG presentation attributes sometimes end up here.
-              'fill',
-              'stroke',
-            ];
-
-            for (const p of directColorProps) {
-              const v = (cs as any)[p];
-              if (typeof v === 'string' && v.includes('oklch(')) {
-                (target.style as any)[p] = resolveOklchToRgb(v);
+            // Aggressively check all computed properties for oklch/oklab
+            for (let i = 0; i < cs.length; i++) {
+              const p = cs[i];
+              if (!p) continue;
+              const v = cs.getPropertyValue(p);
+              if (v && typeof v === 'string' && (v.includes('oklch(') || v.includes('oklab('))) {
+                target.style.setProperty(p, replaceOklabOklchInString(v));
               }
             }
-
-            // Shadows often contain color tokens embedded in a larger string.
-            const boxShadow = cs.boxShadow;
-            if (boxShadow && boxShadow.includes('oklch(')) {
-              target.style.boxShadow = replaceOklchInString(boxShadow);
-            }
-            const textShadow = cs.textShadow;
-            if (textShadow && textShadow.includes('oklch(')) {
-              target.style.textShadow = replaceOklchInString(textShadow);
-            }
+            // Ensure common variables are also covered
+            const commonVars = ['--tw-ring-color', '--tw-shadow-color', '--tw-border-opacity', '--tw-bg-opacity', '--tw-text-opacity'];
+            commonVars.forEach(vName => {
+               const val = cs.getPropertyValue(vName);
+               if (val && (val.includes('oklch') || val.includes('oklab'))) {
+                 target.style.setProperty(vName, replaceOklabOklchInString(val));
+               }
+            });
           };
+
+          // STEP 3: Patch all <style> tags and element attributes directly for good measure
+          clonedDoc.querySelectorAll('style').forEach(s => {
+            s.textContent = s.textContent?.replace(/(oklch|oklab)\([^)]+\)/g, '#000000') || '';
+          });
+          clonedDoc.querySelectorAll('*').forEach(el => {
+            if (el instanceof HTMLElement) {
+              const styleAttr = el.getAttribute('style');
+              if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+                el.setAttribute('style', styleAttr.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
+              }
+            }
+          });
 
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
