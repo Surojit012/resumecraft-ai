@@ -24,4 +24,12 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* html2canvas can sometimes drop spacing/whitespace in captured output.
+     Force a consistent baseline inside the resume preview subtree. */
+  [data-resume-preview] * {
+    letter-spacing: normal;
+    word-spacing: normal;
+    white-space: normal;
+  }
 }

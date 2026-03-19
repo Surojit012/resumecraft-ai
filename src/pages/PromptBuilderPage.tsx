@@ -78,30 +78,134 @@ export default function PromptBuilderPage() {
     if (!resumeRef.current || isDownloading) return;
 
     setIsDownloading(true);
+    let scaleWrapper: HTMLElement | null = null;
+    let originalScaleTransform = '';
+    let originalScaleValue = '';
+    let originalScaleZoom = '';
+    let origScrollY = 0;
     try {
       const element = resumeRef.current;
+      // If any ancestor is applying scaling/transform, neutralize it so html2canvas measures
+      // word boundaries consistently.
+      scaleWrapper = element.closest('[class*="scale-"], [class*="zoom-"]') as HTMLElement | null;
+      originalScaleTransform = scaleWrapper?.style.transform ?? '';
+      originalScaleValue = scaleWrapper?.style.scale ?? '';
+      originalScaleZoom = scaleWrapper?.style.zoom ?? '';
+      if (scaleWrapper) {
+        scaleWrapper.style.transform = 'none';
+        scaleWrapper.style.scale = '1';
+        scaleWrapper.style.zoom = '1';
+      }
+
+      origScrollY = window.scrollY;
+      window.scrollTo(0, 0);
+
+      // Ensure fonts are fully loaded before capture (prevents text width/kerning issues).
+      await document.fonts.ready;
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
+          if (clonedElement) {
+            // Normalize spacing + whitespace in the cloned subtree so words don't run together.
+            clonedElement.style.letterSpacing = 'normal';
+            clonedElement.style.wordSpacing = 'normal';
+            clonedElement.style.whiteSpace = 'normal';
+            clonedElement.style.transform = 'none';
+            clonedElement.style.scale = '1';
+            clonedElement.style.zoom = '1';
+            clonedElement.style.position = 'absolute';
+            clonedElement.style.left = '-9999px';
+            clonedElement.style.top = '0';
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.margin = '0';
+            clonedElement.style.padding = '0';
+            clonedElement.style.display = 'block';
+
+            // Force consistent spacing for all descendants.
+            clonedElement.querySelectorAll('*').forEach((el: any) => {
+              el.style.letterSpacing = 'normal';
+              el.style.wordSpacing = 'normal';
+              el.style.whiteSpace = 'normal';
+            });
+
+            // Ensure parents don't constrain the absolute positioned clone.
+            let parent = clonedElement.parentElement;
+            while (parent && parent !== clonedDoc.body) {
+              parent.style.transform = 'none';
+              parent.style.scale = '1';
+              parent.style.zoom = '1';
+              parent.style.overflow = 'visible';
+              parent.style.height = 'auto';
+              parent.style.margin = '0';
+              parent.style.padding = '0';
+              parent.style.display = 'block';
+              parent.style.position = 'static';
+              parent = parent.parentElement;
+            }
+
+            // Clean up the resume template container (if present).
+            const templateContainer = clonedElement.querySelector('.bg-white.w-\\[210mm\\]') as HTMLElement;
+            if (templateContainer) {
+              templateContainer.style.boxShadow = 'none';
+              templateContainer.style.margin = '0';
+              templateContainer.style.letterSpacing = 'normal';
+              templateContainer.style.wordSpacing = 'normal';
+              templateContainer.style.whiteSpace = 'normal';
+            }
+          }
+        }
       });
 
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      // Add the first page
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      // Add subsequent pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
       pdf.save(`${resumeData?.personalInfo.fullName || 'Resume'}_BuildMyResume.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
+      try {
+        window.scrollTo(0, origScrollY);
+      } catch {
+        // No-op
+      }
+      try {
+        if (scaleWrapper) {
+          scaleWrapper.style.transform = originalScaleTransform;
+          scaleWrapper.style.scale = originalScaleValue;
+          scaleWrapper.style.zoom = originalScaleZoom;
+        }
+      } catch {
+        // No-op
+      }
       setIsDownloading(false);
     }
   };
@@ -271,7 +375,13 @@ export default function PromptBuilderPage() {
         <div className="flex-1 overflow-y-auto p-8 flex justify-center pb-32">
           {resumeData ? (
             <div className="shadow-2xl ring-1 ring-slate-900/5 transition-all duration-300">
-              <ResumePreview ref={resumeRef} data={resumeData} templateId={activeTemplate} onUpdate={setResumeData} />
+              <div
+                data-resume-preview
+                ref={resumeRef}
+                style={{ letterSpacing: 'normal', wordSpacing: 'normal' }}
+              >
+                <ResumePreview data={resumeData} templateId={activeTemplate} onUpdate={setResumeData} />
+              </div>
             </div>
           ) : (
             <div className="m-auto flex flex-col items-center text-slate-400">

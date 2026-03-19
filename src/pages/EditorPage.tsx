@@ -93,11 +93,28 @@ export default function EditorPage() {
     if (!previewRef.current || isDownloading) return;
 
     setIsDownloading(true);
+    let scaleWrapper: HTMLElement | null = null;
+    let originalScaleTransform = '';
+    let originalScaleValue = '';
+    let originalScaleZoom = '';
+    let origScrollY = 0;
     try {
       const element = previewRef.current;
+      // In the editor UI, the preview is visually scaled (`scale-[0.8]`).
+      // html2canvas can mis-measure spacing when a scaled/transform ancestor is present,
+      // so we temporarily neutralize that wrapper during capture.
+      scaleWrapper = element.closest('[class~="scale-[0.8]"]') as HTMLElement | null;
+      originalScaleTransform = scaleWrapper?.style.transform ?? '';
+      originalScaleValue = scaleWrapper?.style.scale ?? '';
+      originalScaleZoom = scaleWrapper?.style.zoom ?? '';
+      if (scaleWrapper) {
+        scaleWrapper.style.transform = 'none';
+        scaleWrapper.style.scale = '1';
+        scaleWrapper.style.zoom = '1';
+      }
       
       // Store original scroll position
-      const origScrollY = window.scrollY;
+      origScrollY = window.scrollY;
       window.scrollTo(0, 0);
 
       // Ensure fonts are ready before capture
@@ -115,6 +132,7 @@ export default function EditorPage() {
             // Reset all spacing and scaling for capture
             clonedElement.style.letterSpacing = 'normal';
             clonedElement.style.wordSpacing = 'normal';
+            clonedElement.style.whiteSpace = 'normal';
             clonedElement.style.transform = 'none';
             clonedElement.style.scale = '1';
             clonedElement.style.zoom = '1';
@@ -128,6 +146,7 @@ export default function EditorPage() {
             clonedElement.querySelectorAll('*').forEach((el: any) => {
               el.style.letterSpacing = 'normal';
               el.style.wordSpacing = 'normal';
+              el.style.whiteSpace = 'normal';
             });
 
             // Ensure the element is not clipped
@@ -157,13 +176,11 @@ export default function EditorPage() {
               templateContainer.style.margin = '0';
               templateContainer.style.letterSpacing = 'normal';
               templateContainer.style.wordSpacing = 'normal';
+              templateContainer.style.whiteSpace = 'normal';
             }
           }
         }
       });
-
-      // Restore scroll position
-      window.scrollTo(0, origScrollY);
 
       const imgData = canvas.toDataURL('image/png', 1.0);
       
@@ -200,6 +217,24 @@ export default function EditorPage() {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
+      // Always restore scroll position and editor UI scaling after capture.
+      // (We neutralized them only to make html2canvas layout deterministic.)
+      try {
+        window.scrollTo(0, origScrollY);
+      } catch {
+        // No-op: restoration is best-effort.
+      }
+
+      try {
+        if (scaleWrapper) {
+          scaleWrapper.style.transform = originalScaleTransform;
+          scaleWrapper.style.scale = originalScaleValue;
+          scaleWrapper.style.zoom = originalScaleZoom;
+        }
+      } catch {
+        // No-op: restoration is best-effort.
+      }
+
       setIsDownloading(false);
     }
   };
@@ -265,8 +300,12 @@ export default function EditorPage() {
           {/* Preview Panel */}
           <div className="h-[calc(100vh-12rem)] overflow-y-auto bg-slate-200/50 rounded-xl border border-slate-200 flex justify-center p-8 custom-scrollbar print:h-auto print:overflow-visible print:bg-white print:border-none print:p-0 print:block">
             <div className="scale-[0.8] origin-top print:scale-100">
-              <div data-resume-preview>
-                <ResumePreview ref={previewRef} data={resumeData} templateId={templateId} />
+              <div
+                data-resume-preview
+                ref={previewRef}
+                style={{ letterSpacing: 'normal', wordSpacing: 'normal' }}
+              >
+                <ResumePreview data={resumeData} templateId={templateId} />
               </div>
             </div>
           </div>
