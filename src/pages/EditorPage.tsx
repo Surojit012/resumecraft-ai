@@ -104,45 +104,59 @@ export default function EditorPage() {
       await document.fonts.ready;
 
       const canvas = await html2canvas(element, {
-        scale: 3, // High scale for crisp text and graphics
+        scale: 2, // Use scale 2 as requested for stability
         useCORS: true,
         logging: true,
         backgroundColor: '#ffffff',
         windowWidth: 1200,
         onclone: (clonedDoc) => {
-          // Add a special class to the body of the cloned doc to help with selection
-          clonedDoc.body.classList.add('html2canvas-cloned');
-          
           const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
           if (clonedElement) {
-            // Reset all transforms and scaling for capture
+            // Reset all spacing and scaling for capture
+            clonedElement.style.letterSpacing = 'normal';
+            clonedElement.style.wordSpacing = 'normal';
             clonedElement.style.transform = 'none';
             clonedElement.style.scale = '1';
+            clonedElement.style.zoom = '1';
             clonedElement.style.width = '210mm';
             clonedElement.style.height = 'auto';
             clonedElement.style.margin = '0';
             clonedElement.style.padding = '0';
             clonedElement.style.display = 'block';
-            clonedElement.style.position = 'relative';
             
-            // Fix all parents that might have overflow issues or transforms
+            // Explicitly force normal spacing on all children to avoid squashed text
+            clonedElement.querySelectorAll('*').forEach((el: any) => {
+              el.style.letterSpacing = 'normal';
+              el.style.wordSpacing = 'normal';
+            });
+
+            // Ensure the element is not clipped
+            clonedElement.style.position = 'absolute';
+            clonedElement.style.left = '-9999px';
+            clonedElement.style.top = '0';
+            
+            // Fix all parents up to the body
             let parent = clonedElement.parentElement;
             while (parent && parent !== clonedDoc.body) {
               parent.style.transform = 'none';
               parent.style.scale = '1';
+              parent.style.zoom = '1';
               parent.style.overflow = 'visible';
               parent.style.height = 'auto';
               parent.style.margin = '0';
               parent.style.padding = '0';
               parent.style.display = 'block';
+              parent.style.position = 'static'; // Ensure parent doesn't constrain the absolute child
               parent = parent.parentElement;
             }
 
-            // Ensure the main template container itself is not being cut off
+            // Ensure the main template container within is clean
             const templateContainer = clonedElement.querySelector('.bg-white.w-\\[210mm\\]') as HTMLElement;
             if (templateContainer) {
-              templateContainer.style.boxShadow = 'none'; // Remove shadow in PDF
+              templateContainer.style.boxShadow = 'none';
               templateContainer.style.margin = '0';
+              templateContainer.style.letterSpacing = 'normal';
+              templateContainer.style.wordSpacing = 'normal';
             }
           }
         }
