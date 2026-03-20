@@ -5,9 +5,19 @@ import { generateFullResumeFromPrompt } from '@/services/ai';
 import { analyzePortfolioUrl } from '@/services/portfolio';
 import { ResumePreview } from '@/components/ResumePreview';
 import { EditorForm } from '@/components/EditorForm';
-import { Sparkles, Loader2, Download, LayoutTemplate, PenTool, Wand2, Link as LinkIcon, ExternalLink } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { 
+  Sparkles, 
+  Loader2, 
+  Download, 
+  LayoutTemplate, 
+  PenTool, 
+  Wand2, 
+  Link as LinkIcon, 
+  ExternalLink,
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
 import { templates } from '@/pages/TemplatesPage';
 
 const PORTFOLIO_SESSION_KEY = 'portfolio-resume-draft-v1';
@@ -74,263 +84,42 @@ export default function PromptBuilderPage() {
     navigate(`/editor/${activeTemplate}?source=portfolio`);
   };
 
-  const downloadPDF = async () => {
-    if (!resumeRef.current || isDownloading) return;
+  const downloadPDF = () => {
+    const element = resumeRef.current;
+    if (!element) return;
 
-    setIsDownloading(true);
-    let scaleWrapper: HTMLElement | null = null;
-    let originalScaleTransform = '';
-    let originalScaleValue = '';
-    let originalScaleZoom = '';
-    let origScrollY = 0;
-    try {
-      const element = resumeRef.current;
-      // If any ancestor is applying scaling/transform, neutralize it so html2canvas measures
-      // word boundaries consistently.
-      scaleWrapper = element.closest('[class*="scale-"], [class*="zoom-"]') as HTMLElement | null;
-      originalScaleTransform = scaleWrapper?.style.transform ?? '';
-      originalScaleValue = scaleWrapper?.style.scale ?? '';
-      originalScaleZoom = scaleWrapper?.style.zoom ?? '';
-      if (scaleWrapper) {
-        scaleWrapper.style.transform = 'none';
-        scaleWrapper.style.scale = '1';
-        scaleWrapper.style.zoom = '1';
-      }
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-      origScrollY = window.scrollY;
-      window.scrollTo(0, 0);
+    // Clone all styles from the current page
+    const styles = Array.from(document.styleSheets)
+      .map(sheet => {
+        try {
+          return Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+        } catch { return ''; }
+      }).join('\n');
 
-      // Ensure fonts are fully loaded before capture (prevents text width/kerning issues).
-      await document.fonts.ready;
-
-      const canvas = await html2canvas(element, {
-        scale: 2, // Use scale 2 as requested for stability
-        useCORS: true,
-        logging: true,
-        backgroundColor: '#ffffff',
-        windowWidth: 1200,
-        ignoreElements: (el) => el.tagName === 'SCRIPT',
-        onclone: (clonedDoc) => {
-          const win = clonedDoc.defaultView;
-
-          // Resolve oklch values in inline computed styles using a canvas context.
-          const canvasEl = clonedDoc.createElement('canvas');
-          canvasEl.width = 1;
-          canvasEl.height = 1;
-          const ctx = canvasEl.getContext('2d');
-
-          const resolveOklchToRgb = (input: string) => {
-            try {
-              if (!ctx) return '#000000';
-              // Use a distinctive base color to detect if the browser actually changed it.
-              ctx.fillStyle = '#010101'; 
-              ctx.fillStyle = input;
-              const resolved = ctx.fillStyle as string;
-              // If browser doesn't support/resolve the color, it remains '#010101' or same string.
-              if (!resolved || resolved === '#010101' || resolved.includes('oklch(') || resolved.includes('oklab(')) {
-                return '#000000'; // Final emergency fallback
-              }
-              return resolved;
-            } catch {
-              return '#000000';
-            }
-          };
-
-          const replaceOklabOklchInString = (input: string) => {
-            if (!input || typeof input !== 'string') return input;
-            return input.replace(/(oklch|oklab)\([^)]+\)/g, (token) => resolveOklchToRgb(token));
-          };
-          
-          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it.
-          const patchRules = (rules: CSSRuleList) => {
-            Array.from(rules).forEach((rule) => {
-              if (win && rule instanceof win.CSSStyleRule) {
-                const style = rule.style;
-                for (let i = 0; i < style.length; i++) {
-                  const prop = style[i];
-                  if (!prop) continue;
-                  const val = style.getPropertyValue(prop);
-                  if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
-                    // Use the resolver to preserve the actual color!
-                    style.setProperty(prop, replaceOklabOklchInString(val));
-                  }
-                }
-              } else if (win && (
-                rule instanceof win.CSSMediaRule || 
-                rule instanceof win.CSSSupportsRule || 
-                (win.CSSLayerBlockRule && rule instanceof win.CSSLayerBlockRule)
-              )) {
-                try {
-                  const nestedRules = (rule as any).cssRules;
-                  if (nestedRules) patchRules(nestedRules);
-                } catch (e) { }
-              }
-            });
-          };
-
-          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
-            try {
-              const rules = sheet.cssRules;
-              if (rules) patchRules(rules);
-            } catch (e) { }
-          });
-
-          // STEP 2: Also inject an override <style> tag to blanket-reset oklch in Tailwind/DaisyUI CSS vars
-          const overrideStyle = clonedDoc.createElement('style');
-          overrideStyle.textContent = `
-            *, *::before, *::after {
-              --tw-ring-color: #3b82f6 !important;
-              --tw-shadow-color: rgba(0,0,0,0.1) !important;
-            }
-          `;
-          clonedDoc.head.appendChild(overrideStyle);
-
-          const normalizeOklchColors = (target: HTMLElement) => {
-            if (!win) return;
-            const cs = win.getComputedStyle(target);
-
-            // Aggressively check all computed properties for oklch/oklab
-            for (let i = 0; i < cs.length; i++) {
-              const p = cs[i];
-              if (!p) continue;
-              const v = cs.getPropertyValue(p);
-              if (v && typeof v === 'string' && (v.includes('oklch(') || v.includes('oklab('))) {
-                target.style.setProperty(p, replaceOklabOklchInString(v));
-              }
-            }
-            // Ensure common variables are also covered
-            const commonVars = ['--tw-ring-color', '--tw-shadow-color', '--tw-border-opacity', '--tw-bg-opacity', '--tw-text-opacity'];
-            commonVars.forEach(vName => {
-               const val = cs.getPropertyValue(vName);
-               if (val && (val.includes('oklch') || val.includes('oklab'))) {
-                 target.style.setProperty(vName, replaceOklabOklchInString(val));
-               }
-            });
-          };
-
-          // STEP 3: Patch all <style> tags and element attributes directly for good measure
-          clonedDoc.querySelectorAll('style').forEach(s => {
-            if (s !== overrideStyle) {
-              s.textContent = replaceOklabOklchInString(s.textContent || '');
-            }
-          });
-          clonedDoc.querySelectorAll('*').forEach(el => {
-            if (el instanceof HTMLElement) {
-              const styleAttr = el.getAttribute('style');
-              if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
-                el.setAttribute('style', replaceOklabOklchInString(styleAttr));
-              }
-            }
-          });
-
-          const clonedElement = clonedDoc.querySelector('[data-resume-preview]') as HTMLElement;
-          if (clonedElement) {
-            // Normalize spacing + whitespace in the cloned subtree so words don't run together.
-            clonedElement.style.letterSpacing = 'normal';
-            clonedElement.style.wordSpacing = 'normal';
-            clonedElement.style.whiteSpace = 'normal';
-            clonedElement.style.transform = 'none';
-            clonedElement.style.scale = '1';
-            clonedElement.style.zoom = '1';
-            clonedElement.style.position = 'absolute';
-            clonedElement.style.left = '-9999px';
-            clonedElement.style.top = '0';
-            clonedElement.style.overflow = 'visible';
-            clonedElement.style.margin = '0';
-            clonedElement.style.padding = '0';
-            clonedElement.style.display = 'block';
-
-            // Force consistent spacing for all descendants.
-            clonedElement.querySelectorAll('*').forEach((el: any) => {
-              el.style.letterSpacing = 'normal';
-              el.style.wordSpacing = 'normal';
-              el.style.whiteSpace = 'normal';
-              normalizeOklchColors(el as HTMLElement);
-            });
-
-            // Also normalize the clone document's body for background sampling.
-            if (clonedDoc.body) {
-              normalizeOklchColors(clonedDoc.body);
-            }
-
-            // Ensure parents don't constrain the absolute positioned clone.
-            let parent = clonedElement.parentElement;
-            while (parent && parent !== clonedDoc.body) {
-              parent.style.transform = 'none';
-              parent.style.scale = '1';
-              parent.style.zoom = '1';
-              parent.style.overflow = 'visible';
-              parent.style.height = 'auto';
-              parent.style.margin = '0';
-              parent.style.padding = '0';
-              parent.style.display = 'block';
-              parent.style.position = 'static';
-              parent = parent.parentElement;
-            }
-
-            // Clean up the resume template container within.
-            const templateContainer = clonedElement.querySelector('.bg-white.w-\\[210mm\\]') as HTMLElement;
-            if (templateContainer) {
-              templateContainer.style.boxShadow = 'none';
-              templateContainer.style.margin = '0';
-              templateContainer.style.letterSpacing = 'normal';
-              templateContainer.style.wordSpacing = 'normal';
-              templateContainer.style.whiteSpace = 'normal';
-            }
-
-            // Cleanup canvas node
-            canvasEl.remove();
-          }
-        }
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      let heightLeft = pdfHeight;
-      let position = 0;
-
-      // Add the first page
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
-      heightLeft -= pageHeight;
-
-      // Add subsequent pages if content is longer than one page
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
-        heightLeft -= pageHeight;
-      }
-      pdf.save(`${resumeData?.personalInfo.fullName.replace(/\s+/g, '_') || 'Resume'}_BuildMyResume.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
-    } finally {
-      try {
-        window.scrollTo(0, origScrollY);
-      } catch {
-        // No-op
-      }
-      try {
-        if (scaleWrapper) {
-          scaleWrapper.style.transform = originalScaleTransform;
-          scaleWrapper.style.scale = originalScaleValue;
-          scaleWrapper.style.zoom = originalScaleZoom;
-        }
-      } catch {
-        // No-op
-      }
-      setIsDownloading(false);
-    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <style>${styles}</style>
+          <style>
+            @page { size: A4; margin: 0; }
+            body { margin: 0; padding: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          </style>
+        </head>
+        <body>${element.outerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   return (
