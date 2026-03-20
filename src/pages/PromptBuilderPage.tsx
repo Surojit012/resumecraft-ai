@@ -112,54 +112,6 @@ export default function PromptBuilderPage() {
         ignoreElements: (el) => el.tagName === 'SCRIPT',
         onclone: (clonedDoc) => {
           const win = clonedDoc.defaultView;
-          
-          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it.
-          // We use a recursive function to handle nested rules like @media, @layer, and @supports.
-          const patchRules = (rules: CSSRuleList) => {
-            Array.from(rules).forEach((rule) => {
-              if (win && rule instanceof win.CSSStyleRule) {
-                const style = rule.style;
-                for (let i = 0; i < style.length; i++) {
-                  const prop = style[i];
-                  const val = style.getPropertyValue(prop);
-                  if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
-                    // Replace with a safe fallback — html2canvas just needs a valid color
-                    style.setProperty(prop, val.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
-                  }
-                }
-              } else if (win && (
-                rule instanceof win.CSSMediaRule || 
-                rule instanceof win.CSSSupportsRule || 
-                (win.CSSLayerBlockRule && rule instanceof win.CSSLayerBlockRule)
-              )) {
-                try {
-                  const nestedRules = (rule as any).cssRules;
-                  if (nestedRules) patchRules(nestedRules);
-                } catch (e) {
-                  // Some nested rules might be inaccessible
-                }
-              }
-            });
-          };
-
-          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
-            try {
-              const rules = sheet.cssRules;
-              if (rules) patchRules(rules);
-            } catch (e) {
-              // Cross-origin sheets will throw — skip them safely
-            }
-          });
-
-          // STEP 2: Also inject an override <style> tag to blanket-reset oklch in Tailwind/DaisyUI CSS vars
-          const overrideStyle = clonedDoc.createElement('style');
-          overrideStyle.textContent = `
-            *, *::before, *::after {
-              --tw-ring-color: #3b82f6 !important;
-              --tw-shadow-color: #000 !important;
-            }
-          `;
-          clonedDoc.head.appendChild(overrideStyle);
 
           // Resolve oklch values in inline computed styles using a canvas context.
           const canvasEl = clonedDoc.createElement('canvas');
@@ -170,13 +122,13 @@ export default function PromptBuilderPage() {
           const resolveOklchToRgb = (input: string) => {
             try {
               if (!ctx) return '#000000';
-              ctx.fillStyle = '#000000'; // Default fallback
+              // Use a distinctive base color to detect if the browser actually changed it.
+              ctx.fillStyle = '#010101'; 
               ctx.fillStyle = input;
               const resolved = ctx.fillStyle as string;
-              // If browser doesn't support the color, it remains '#000000' or same string.
-              // We MUST NOT pass oklch/oklab back to html2canvas.
-              if (!resolved || resolved.includes('oklch(') || resolved.includes('oklab(')) {
-                return '#000000';
+              // If browser doesn't support/resolve the color, it remains '#010101' or same string.
+              if (!resolved || resolved === '#010101' || resolved.includes('oklch(') || resolved.includes('oklab(')) {
+                return '#000000'; // Final emergency fallback
               }
               return resolved;
             } catch {
@@ -188,6 +140,51 @@ export default function PromptBuilderPage() {
             if (!input || typeof input !== 'string') return input;
             return input.replace(/(oklch|oklab)\([^)]+\)/g, (token) => resolveOklchToRgb(token));
           };
+          
+          // STEP 1: Patch all stylesheets to remove oklch() — html2canvas cannot parse it.
+          const patchRules = (rules: CSSRuleList) => {
+            Array.from(rules).forEach((rule) => {
+              if (win && rule instanceof win.CSSStyleRule) {
+                const style = rule.style;
+                for (let i = 0; i < style.length; i++) {
+                  const prop = style[i];
+                  if (!prop) continue;
+                  const val = style.getPropertyValue(prop);
+                  if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                    // Use the resolver to preserve the actual color!
+                    style.setProperty(prop, replaceOklabOklchInString(val));
+                  }
+                }
+              } else if (win && (
+                rule instanceof win.CSSMediaRule || 
+                rule instanceof win.CSSSupportsRule || 
+                (win.CSSLayerBlockRule && rule instanceof win.CSSLayerBlockRule)
+              )) {
+                try {
+                  const nestedRules = (rule as any).cssRules;
+                  if (nestedRules) patchRules(nestedRules);
+                } catch (e) { }
+              }
+            });
+          };
+
+          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+            try {
+              const rules = sheet.cssRules;
+              if (rules) patchRules(rules);
+            } catch (e) { }
+          });
+
+          // STEP 2: Also inject an override <style> tag to blanket-reset oklch in Tailwind/DaisyUI CSS vars
+          const overrideStyle = clonedDoc.createElement('style');
+          overrideStyle.textContent = `
+            *, *::before, *::after {
+              --tw-ring-color: #3b82f6 !important;
+              --tw-shadow-color: rgba(0,0,0,0.1) !important;
+            }
+          `;
+          clonedDoc.head.appendChild(overrideStyle);
+
           const normalizeOklchColors = (target: HTMLElement) => {
             if (!win) return;
             const cs = win.getComputedStyle(target);
@@ -201,7 +198,7 @@ export default function PromptBuilderPage() {
                 target.style.setProperty(p, replaceOklabOklchInString(v));
               }
             }
-            // Ensure common variables are also covered if not caught by computed style iteration
+            // Ensure common variables are also covered
             const commonVars = ['--tw-ring-color', '--tw-shadow-color', '--tw-border-opacity', '--tw-bg-opacity', '--tw-text-opacity'];
             commonVars.forEach(vName => {
                const val = cs.getPropertyValue(vName);
@@ -213,13 +210,15 @@ export default function PromptBuilderPage() {
 
           // STEP 3: Patch all <style> tags and element attributes directly for good measure
           clonedDoc.querySelectorAll('style').forEach(s => {
-            s.textContent = s.textContent?.replace(/(oklch|oklab)\([^)]+\)/g, '#000000') || '';
+            if (s !== overrideStyle) {
+              s.textContent = replaceOklabOklchInString(s.textContent || '');
+            }
           });
           clonedDoc.querySelectorAll('*').forEach(el => {
             if (el instanceof HTMLElement) {
               const styleAttr = el.getAttribute('style');
               if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
-                el.setAttribute('style', styleAttr.replace(/(oklch|oklab)\([^)]+\)/g, '#000000'));
+                el.setAttribute('style', replaceOklabOklchInString(styleAttr));
               }
             }
           });
